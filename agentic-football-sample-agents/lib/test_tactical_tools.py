@@ -173,7 +173,9 @@ def test_hint_gating():
           any(h.startswith("Mark:") for h in hints_d), f"got {hints_d}")
 
     view_gk = classify_phase(d, HOME, 0)
-    check("GK in DEFEND gets no hints", tactical_hints(d, HOME, 0, "GK", view_gk) == [])
+    gk_hints = tactical_hints(d, HOME, 0, "GK", view_gk)
+    check("GK gets exactly the line hint",
+          len(gk_hints) == 1 and gk_hints[0].startswith("GK line:"), f"got {gk_hints}")
 
 
 def test_summary_contains_hints():
@@ -231,6 +233,21 @@ def test_captain_cadence():
     broken = _FixedAgent("no json here")
     view = classify_phase(kickoff, HOME, 0)
     check("garbage response keeps stance", cap.maybe_review(broken, log, kickoff, HOME, view) is None)
+
+
+def test_gk_line():
+    print("gk_line_target:")
+    from tactical_tools import gk_line_target
+    # HOME goal at (-55, 0); ball ahead of goal, DEF at 20 units out
+    spot = gk_line_target({"x": 0, "y": 10}, HOME, {"x": -35, "y": 0}, we_have_ball=True)
+    check("attack depth capped by cap and DEF margin",
+          2.0 <= spot["depth"] <= 18.0, f"got {spot}")
+    check("stays goal-side of DEF", spot["depth"] <= 20.0 - 6.0 + 1e-6)
+    defend = gk_line_target({"x": -30, "y": -8}, HOME, {"x": -35, "y": 0}, we_have_ball=False)
+    check("defend depth is shallow", defend["depth"] <= 6.0, f"got {defend}")
+    check("on the ball side of centre", defend["y"] < 0, f"got {defend}")
+    deep_def = gk_line_target({"x": 0, "y": 0}, HOME, {"x": -50, "y": 0}, we_have_ball=True)
+    check("drops with a deep DEF", deep_def["depth"] <= 2.0 + 1e-6, f"got {deep_def}")
 
 
 def test_strategy_catalogue():
@@ -351,6 +368,7 @@ if __name__ == "__main__":
     test_summary_contains_hints()
     test_captain_parsing()
     test_captain_cadence()
+    test_gk_line()
     test_strategy_catalogue()
     test_blackboard()
     test_telemetry_memory()

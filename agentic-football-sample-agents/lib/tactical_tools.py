@@ -19,7 +19,13 @@ from __future__ import annotations
 
 import math
 
-from calibration import PASS_LANE_RADIUS
+from calibration import (
+    GK_BEHIND_DEF_MARGIN,
+    GK_DEPTH_ATTACK,
+    GK_DEPTH_DEFEND,
+    GK_MAX_FROM_GOAL,
+    PASS_LANE_RADIUS,
+)
 from phase import COUNTER, DEFEND, POSSESS, PhaseView, attack_dir, progress
 from state import _is_my_team, _player_idx, dist, get_goal_positions
 from tactical_state import ROLE_NAMES, goal_centre
@@ -168,6 +174,25 @@ def mark_targets(opponents: list, ball_pos: dict, my_pos: dict, team_id: int,
     return threats
 
 
+# ── goalkeeper line target ───────────────────────────────────────────────────
+
+def gk_line_target(ball_pos: dict, team_id: int, def_pos, we_have_ball: bool) -> dict:
+    """Where the GK should stand: on the goal-centre→ball line, at a depth set
+    by possession, capped, and always GK_BEHIND_DEF_MARGIN closer to goal than
+    DEF. Computed here so the model never does per-tick trigonometry."""
+    my_goal = goal_centre(team_id, opponent=False)
+    d_gb = max(dist(my_goal, ball_pos), 0.1)
+    depth = GK_DEPTH_ATTACK if we_have_ball else GK_DEPTH_DEFEND
+    if def_pos is not None:
+        depth = min(depth, max(2.0, dist(my_goal, def_pos) - GK_BEHIND_DEF_MARGIN))
+    depth = min(depth, GK_MAX_FROM_GOAL, d_gb)
+    return {
+        "x": round(my_goal["x"] + depth * (ball_pos.get("x", 0) - my_goal["x"]) / d_gb, 1),
+        "y": round(depth * ball_pos.get("y", 0) / d_gb, 1),
+        "depth": round(depth, 1),
+    }
+
+
 # ── the per-tick hint block ──────────────────────────────────────────────────
 
 # Which zone a role offers into when its team has the ball.
@@ -226,5 +251,14 @@ def tactical_hints(game_state: dict, team_id: int, my_player_id: int,
             f"P{t['player_id']} threat {t['threat']}{' (has ball)' if t['has_ball'] else ''} "
             f"{t['tightness']}, {t['dist_to_me']} from you" for t in threats
         ))
+
+    if role == "GK" and not view.i_have_ball:
+        defender = next((p for p in mine if _player_idx(p) == 1), None)
+        spot = gk_line_target(ball_pos, team_id,
+                              defender.get("position") if defender else None,
+                              view.we_have_ball)
+        lines.append(
+            f"GK line: ({spot['x']},{spot['y']}) — on the ball-goal line at depth {spot['depth']}"
+        )
 
     return lines

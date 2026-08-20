@@ -60,6 +60,14 @@ PASS_LANE_RADIUS = 8.0
 # tick, so shorter periods trade goalkeeper responsiveness for adaptability.
 CAPTAIN_PERIOD_SECONDS = 20.0
 
+# ── goalkeeper line positioning (tactical_tools.gk_line_target) ─────────────
+# Depth = how far off the goal centre the GK stands along the ball-goal line.
+# Fit from outcome records where role="GK": shots conceded vs depth at the time.
+GK_DEPTH_ATTACK = 10.0    # we have the ball — step out to sweep behind DEF
+GK_DEPTH_DEFEND = 5.0     # they have the ball in our half
+GK_MAX_FROM_GOAL = 18.0   # hard cap, both styles
+GK_BEHIND_DEF_MARGIN = 6.0  # always this much closer to goal than DEF
+
 # ── goalkeeper ──────────────────────────────────────────────────────────────
 # GK_SWEEP_RADIUS: how far out the keeper will come once the carrier is past
 # the defender. This is the formation's biggest single risk, so it is the value
@@ -101,6 +109,10 @@ PROVENANCE = {
     "GK_LOOSE_BALL_RADIUS": "unmeasured — initial guess",
     "PASS_LANE_RADIUS": "unmeasured — inherited from the gateway tool's guess",
     "CAPTAIN_PERIOD_SECONDS": "unmeasured — initial guess",
+    "GK_DEPTH_ATTACK": "unmeasured — initial guess",
+    "GK_DEPTH_DEFEND": "unmeasured — initial guess",
+    "GK_MAX_FROM_GOAL": "unmeasured — initial guess",
+    "GK_BEHIND_DEF_MARGIN": "unmeasured — initial guess",
 }
 
 
