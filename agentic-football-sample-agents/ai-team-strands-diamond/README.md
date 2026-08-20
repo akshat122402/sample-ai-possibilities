@@ -156,6 +156,37 @@ The loop:
 Telemetry is best-effort by construction: every entry point swallows its own exceptions, so
 a malformed payload costs you a record rather than a tick.
 
+## Harnesses
+
+The five agents deploy as **runtimes** — that is the real team, and it is what
+runs the phase classifier, the state summariser, the role whitelist, the fallback
+and the telemetry.
+
+`build_harnesses.py` additionally generates a **harness** per agent, so each also
+appears as a managed `AWS::BedrockAgentCore::Harness` resource:
+
+```bash
+python3 build_harnesses.py           # regenerate app/ and agentcore.json
+python3 build_harnesses.py --check   # fail if stale (they are generated, not edited)
+```
+
+Each harness is `app/<name>/harness.json` plus an auto-discovered
+`system-prompt.md`. The prompt is derived from the runtime agent's own
+`SYSTEM_PROMPT`, so a tactical change reaches both; what the generator adds is an
+input contract, because a harness receives the raw payload rather than the
+summary `tactical_state.py` builds.
+
+A harness runs a managed loop: a system prompt, a model, and declared tools. None
+of this team's Python executes in one, so relative to the runtime it has
+
+- no turnover detection — `COUNTER` is approximated from a single frame
+- no role whitelist — nothing refuses `RESET` or an out-of-role command
+- no rule-based fallback — a bad model response is simply lost
+- no telemetry, and no clamping of `MOVE_TO` to the pitch
+
+Both sets deploy from the same `deploy_all.py`. If you only want the runtimes,
+delete the `harnesses` array from `agentcore/agentcore.json` and redeploy.
+
 ## Known limits
 
 - **Turnover memory lives in the container.** `phase.py` keeps the previous tick in a module

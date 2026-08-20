@@ -1,0 +1,14 @@
+{
+  "name": "ai_ml_harness",
+  "model": {
+    "provider": "bedrock",
+    "modelId": "us.amazon.nova-micro-v1:0"
+  },
+  "tools": [],
+  "skills": [],
+  "memory": {
+    "mode": "disabled"
+  },
+  "maxIterations": 1,
+  "timeoutSeconds": 15
+}

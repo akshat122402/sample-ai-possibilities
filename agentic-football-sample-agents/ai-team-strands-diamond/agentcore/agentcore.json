@@ -63,7 +63,28 @@
   "policyEngines": [],
   "configBundles": [],
   "abTests": [],
-  "harnesses": [],
+  "harnesses": [
+    {
+      "name": "ai_gk_harness",
+      "path": "app/ai_gk_harness"
+    },
+    {
+      "name": "ai_def_harness",
+      "path": "app/ai_def_harness"
+    },
+    {
+      "name": "ai_ml_harness",
+      "path": "app/ai_ml_harness"
+    },
+    {
+      "name": "ai_mr_harness",
+      "path": "app/ai_mr_harness"
+    },
+    {
+      "name": "ai_fwd_harness",
+      "path": "app/ai_fwd_harness"
+    }
+  ],
   "datasets": [],
   "payments": []
 }
