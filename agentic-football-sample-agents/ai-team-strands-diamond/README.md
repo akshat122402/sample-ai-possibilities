@@ -84,6 +84,7 @@ No AWS needed:
 
 ```bash
 python3 ../lib/test_tactical.py      # phase classifier, geometry, fallbacks, whitelist
+python3 ../lib/test_telemetry.py     # calibration records and outcome pairing
 python3 ai-gk/test_local.py          # per agent
 python3 ai-gk/test_local.py --llm    # adds one real Bedrock call
 ```
@@ -106,6 +107,54 @@ AWS_DEFAULT_REGION=us-east-1 python deploy_all.py
 
 Runtime names are suffixed `_diamond_agent`, so this team can coexist with the other sample
 teams in one account.
+
+## Calibration
+
+Every tunable number in this team lives in [`lib/calibration.py`](../lib/calibration.py),
+and all twelve currently carry their initial guess — shot ranges, the counter window, press
+radii, the keeper's sweep radius. `PROVENANCE` in that file records which have been
+measured and which have not.
+
+Physics here is a property of the game engine: identical in every match, opponent
+independent, and a handful of numbers. That makes it worth learning — but *between*
+matches, not during one. An in-match sample is too small to fit anything, an LLM is a poor
+numeric aggregator, and a constant belongs in code rather than in a store queried on every
+tick. So there is no runtime memory involved.
+
+[`lib/telemetry.py`](../lib/telemetry.py) produces the data, through the logger the agents
+already have — the runtime templates set `observability: enabled: true`, so the lines land
+in CloudWatch with no new infrastructure. Three record kinds:
+
+| Kind | Emitted | Carries |
+|------|---------|---------|
+| `kinematics` | every tick | player speed (engine-reported and displacement-derived), sprint flag, stamina and its rate, ball speed and acceleration |
+| `decision` | every tick | the command chosen, its source (`llm` / `fallback` / `fallback_after_error`), and the features that should predict success: `distGoal`, `lateral`, `nearestOpp`, `stam`, `distBall` |
+| `outcome` | when a tracked decision resolves | `goal` / `lost` / `completed` / `intercepted` / `won_ball_self` / … paired to its decision by `id`, with the decision's features repeated |
+
+Only commands with an observable result open an outcome — shots, passes, distributions,
+presses, tackles, interceptions. `MOVE_TO` does not: the kinematics stream already measures
+movement, and one outcome per tick would bury the useful records. A maintained command
+reissued every tick opens one pending record, not one per tick.
+
+The loop:
+
+1. Play matches with `TELEMETRY_ENABLED=1` (the default; set `0` to silence it).
+2. Pull the records out of CloudWatch Logs Insights:
+
+   ```
+   fields @message
+   | filter @message like /TELEMETRY/
+   | parse @message 'TELEMETRY *' as body
+   | filter body like /"kind":"outcome"/
+   ```
+
+3. Fit the constant — e.g. bucket `SHOOT` outcomes by `distGoal` and `lateral` and find
+   where conversion stops beating the value of passing.
+4. Update the value in `calibration.py` and replace its `PROVENANCE` entry with the date
+   and sample size. Nothing else in the codebase changes.
+
+Telemetry is best-effort by construction: every entry point swallows its own exceptions, so
+a malformed payload costs you a record rather than a tick.
 
 ## Known limits
 

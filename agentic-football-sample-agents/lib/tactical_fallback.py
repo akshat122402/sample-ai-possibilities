@@ -17,10 +17,21 @@ from tactical_state import dist_to_opp_goal, dist_to_own_goal
 
 HALF_LENGTH = 55.0
 
-# Shot gates. Distance is true distance to the goal centre, and the lateral gate
-# throws out the wide-angle shots an x-axis "distance" would have allowed.
-FWD_SHOOT_DIST, FWD_SHOOT_LATERAL = 24.0, 20.0
-MID_SHOOT_DIST, MID_SHOOT_LATERAL = 26.0, 18.0
+# Every tunable number below comes from calibration.py. The shot gates use true
+# distance to the goal centre plus a lateral gate, which is what throws out the
+# wide-angle shots an x-axis "distance" would have allowed.
+from calibration import (  # noqa: E402
+    DEF_PRESS_INTENSITY,
+    DEF_PRESS_RADIUS,
+    FWD_PRESS_MIN_PROGRESS,
+    FWD_SHOOT_DIST,
+    FWD_SHOOT_LATERAL,
+    GK_LOOSE_BALL_RADIUS,
+    GK_SWEEP_RADIUS,
+    MID_PRESS_INTENSITY,
+    MID_SHOOT_DIST,
+    MID_SHOOT_LATERAL,
+)
 
 GK_ID, DEF_ID, ML_ID, MR_ID, FWD_ID = 0, 1, 2, 3, 4
 
@@ -136,10 +147,10 @@ def gk_fallback(game_state: dict, team_id: int, my_player_id: int, view: PhaseVi
         beat_defender = dist_to_own_goal(carrier_pos, team_id) < dist_to_own_goal(
             mates[DEF_ID].get("position", {}), team_id
         )
-        if beat_defender and dist_to_own_goal(carrier_pos, team_id) < 30:
+        if beat_defender and dist_to_own_goal(carrier_pos, team_id) < GK_SWEEP_RADIUS:
             return _cmd("INTERCEPT", {"aggressive": True}, duration=2)
 
-    if view.phase == LOOSE and dist(mates.get(my_player_id, {}).get("position", {}), ball_pos) < 16:
+    if view.phase == LOOSE and dist(mates.get(my_player_id, {}).get("position", {}), ball_pos) < GK_LOOSE_BALL_RADIUS:
         return _cmd("INTERCEPT", {"aggressive": False}, duration=2)
 
     if view.phase in (POSSESS, COUNTER):
@@ -164,8 +175,8 @@ def def_fallback(game_state: dict, team_id: int, my_player_id: int, view: PhaseV
 
     if view.phase == DEFEND:
         carrier = _opponents(game_state, team_id).get(view.opp_carrier_id, {}) if view.opp_carrier_id is not None else {}
-        if carrier and dist(my_pos, carrier.get("position", {})) < 18:
-            return _cmd("PRESS_BALL", {"intensity": 0.8}, duration=3)
+        if carrier and dist(my_pos, carrier.get("position", {})) < DEF_PRESS_RADIUS:
+            return _cmd("PRESS_BALL", {"intensity": DEF_PRESS_INTENSITY}, duration=3)
         return _cmd("MARK", {"target_player_id": _most_dangerous_opponent(game_state, team_id),
                              "tightness": "TIGHT"}, duration=4)
 
@@ -197,7 +208,7 @@ def mid_fallback(game_state: dict, team_id: int, my_player_id: int, view: PhaseV
 
     if view.phase == DEFEND:
         if pusher:
-            return _cmd("PRESS_BALL", {"intensity": 0.75}, duration=3)
+            return _cmd("PRESS_BALL", {"intensity": MID_PRESS_INTENSITY}, duration=3)
         return _move(team_id, -0.28, my_side * 6.0)
 
     if view.phase == LOOSE:
@@ -233,7 +244,7 @@ def fwd_fallback(game_state: dict, team_id: int, my_player_id: int, view: PhaseV
     if view.phase == DEFEND:
         # Press only where it pays: when they are building from deep. Chasing
         # back is the mids' job in this shape.
-        if view.opp_carrier_progress is not None and view.opp_carrier_progress > 18.0:
+        if view.opp_carrier_progress is not None and view.opp_carrier_progress > FWD_PRESS_MIN_PROGRESS:
             return _cmd("PRESS_BALL", {"intensity": 0.7}, duration=3)
         return _move(team_id, 0.15, away_from_ball * 0.5)
 

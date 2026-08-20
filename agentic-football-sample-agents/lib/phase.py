@@ -30,14 +30,9 @@ POSSESS = "POSSESS"
 LOOSE = "LOOSE"
 DEFEND = "DEFEND"
 
-# How long a counter stays live once triggered. The transition is worth a few
-# seconds of committed running; after that the opponent has recovered shape and
-# it is an ordinary attack.
-COUNTER_HOLD_SECONDS = 4.0
-
-# Opponents caught on the wrong side of the ball before a turnover counts as a
-# counter-attack opportunity.
-COUNTER_MIN_OPPONENTS_BEATEN = 2
+# Both re-exported from calibration.py, which is where every tunable number in
+# this team lives so it can be measured rather than guessed.
+from calibration import COUNTER_HOLD_SECONDS, COUNTER_MIN_OPPONENTS_BEATEN  # noqa: F401
 
 
 def attack_dir(team_id: int) -> int:

@@ -26,6 +26,7 @@ from agent_base import create_agent as create_tactical_agent  # noqa: F401  (re-
 from parsing import parse_commands
 from phase import classify_phase
 from prompt_common import ROLE_COMMANDS
+import telemetry
 from tactical_fallback import LAST_RESORT, build_tactical_fallback
 from tactical_state import summarize_tactical_state
 
@@ -74,6 +75,7 @@ def create_tactical_invoke_handler(
                 )
 
             view = classify_phase(game_state, team_id, effective_pid)
+            telemetry.observe(log, game_state, team_id, effective_pid, role, view)
             summary = summarize_tactical_state(game_state, team_id, effective_pid, role, view)
             log.info(f"{role} p{effective_pid} team {team_id} phase={view.phase} ({view.reason})")
 
@@ -93,12 +95,17 @@ def create_tactical_invoke_handler(
                     log.warn(f"{role} returned {len(allowed)} commands; using the first")
                 chosen = allowed[:1]
                 log.info(f"LLM: {chosen[0].get('commandType')} in phase {view.phase}")
+                telemetry.record_decision(log, game_state, team_id, effective_pid, role,
+                                          view, chosen[0], "llm")
                 yield json.dumps(chosen)
                 return
 
             log.warn(f"{role} LLM parse failed in phase {view.phase}; using fallback. "
                      f"Response: {response_text[:200]}")
-            yield json.dumps(fallback(game_state, team_id, effective_pid, view))
+            commands = fallback(game_state, team_id, effective_pid, view)
+            telemetry.record_decision(log, game_state, team_id, effective_pid, role,
+                                      view, commands[0], "fallback")
+            yield json.dumps(commands)
 
         except Exception as e:
             log.error(f"{role} agent error: {e}")
@@ -109,7 +116,10 @@ def create_tactical_invoke_handler(
                 my_players = prompt_data.get("myPlayers") or [my_player_id]
                 effective_pid = my_players[0]
                 view = classify_phase(game_state, team_id, effective_pid)
-                yield json.dumps(fallback(game_state, team_id, effective_pid, view))
+                commands = fallback(game_state, team_id, effective_pid, view)
+                telemetry.record_decision(log, game_state, team_id, effective_pid, role,
+                                          view, commands[0], "fallback_after_error")
+                yield json.dumps(commands)
             except Exception as inner:
                 log.error(f"{role} fallback also failed: {inner}")
                 yield json.dumps(_last_resort(team_id, effective_pid))
