@@ -26,8 +26,35 @@ class _FakeApp:
     def run(self): pass
 
 
+class _FakeAgent:
+    """Minimal stand-in for strands.Agent — returns an empty response, so the
+    handler under test exercises its fallback path."""
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def __call__(self, prompt):
+        return ""
+
+
+def mock_strands():
+    """Stub out strands ONLY when it is not installed, so offline tests run on
+    machines without the SDK while `test_local.py --llm` keeps the real one."""
+    try:
+        import strands  # noqa: F401
+        return
+    except ImportError:
+        pass
+    strands_mod = type(sys)("strands")
+    strands_mod.Agent = _FakeAgent
+    models_mod = type(sys)("strands.models")
+    models_mod.BedrockModel = lambda **kwargs: None
+    sys.modules["strands"] = strands_mod
+    sys.modules["strands.models"] = models_mod
+
+
 def mock_agentcore():
     """Inject fake bedrock_agentcore modules so agent code can import cleanly."""
+    mock_strands()
     sys.modules["bedrock_agentcore"] = type(sys)("bedrock_agentcore")
     sys.modules["bedrock_agentcore.runtime"] = type(sys)("bedrock_agentcore.runtime")
     sys.modules["bedrock_agentcore.runtime"].BedrockAgentCoreApp = _FakeApp

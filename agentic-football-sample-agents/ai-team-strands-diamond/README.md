@@ -8,13 +8,13 @@ sample teams in this folder, with a phase layer on top.
 GK (0) — DEF (1) — ML (2) / MR (3) — FWD (4)
 ```
 
-| id | Role | Model | Why |
-|----|------|-------|-----|
-| 0 | GK, captain | Nova Lite | Sweeper judgement needs more than Micro, but must stay fast |
-| 1 | DEF | Nova Lite | Lone centre-back; its mistakes are the expensive ones |
-| 2 | ML | Nova Micro | The phase layer removes most of the reasoning; speed wins |
-| 3 | MR | Nova Micro | Same |
-| 4 | FWD | Nova Pro | Final-third choices (shoot vs pass vs carry) have the widest option space |
+All five players run **Claude Haiku 4.5** (`lib/models.py`): a tick is a reflex, and Haiku
+is the strongest model that still answers inside the ~1s budget. The phase layer and the
+computed-tactics block do the geometry, so the per-tick model only has to choose. The
+**captain** (see below) runs **Claude Sonnet** — it fires every ~20s, not every tick, so it
+can afford the stronger model. Override either with the `PLAYER_MODEL_ID` /
+`CAPTAIN_MODEL_ID` environment variables if your account exposes different Bedrock
+inference profile IDs.
 
 ## How coordination works
 
@@ -35,8 +35,43 @@ and no latency:
 | `LOOSE` | nobody has the ball |
 | `DEFEND` | the opponent has the ball |
 
-The GK's captaincy is the one team-wide lever the platform does support: it is the only
-role permitted to issue `SET_STANCE`, which it spends at a restart based on the scoreline.
+Above the tick-level phase function sits the one slow lever the platform supports:
+`SET_STANCE`, which only the GK role may issue. The stance decision is made by a **captain
+agent** (`lib/captain.py`) — a second, Sonnet-tier model riding in the GK runtime. Every
+`CAPTAIN_PERIOD_SECONDS` (preferring a `RESTART` tick, immediately after a goal) it reviews
+the score, the clock and the share of phases since its last review, and its `SET_STANCE`
+travels out inside the GK's own command array. A captain failure costs a review, never a
+tick — the GK plays on and the previous stance stands.
+
+## Strategies, memory and the blackboard
+
+The captain picks more than a stance: `lib/strategy.py` defines five named plans
+(`HIGH_PRESS`, `LOW_BLOCK`, `DIRECT_COUNTER`, `POSSESS_WIDE`, and the default), each a
+one-line brief per role. The chosen plan travels over the **blackboard** (`lib/blackboard.py`)
+— a DynamoDB table the CDK stack creates and injects as `TEAM_BLACKBOARD_TABLE` — and lands
+as a `STRATEGY:` line in every player's next state summary.
+
+The same channel carries memory upward: telemetry's resolved outcomes are tallied in-process
+(`{cmd: [attempts, worked]}`), each player publishes its tally every ~5s, and the captain's
+review reads them all — so strategy changes follow what is measurably working, not just the
+score. Each player also sees its own last-five outcomes per command ("Your recent
+outcomes: PASS 1/3"), which is what stops an agent repeating a failing pass all match.
+
+Latency is protected throughout: plan reads are cached ~2s, stats writes throttled ~5s,
+DynamoDB calls capped at 0.4s with one attempt, and every blackboard failure degrades to
+the plan-less football this team played before the layer existed. The rule-based fallbacks
+deliberately ignore strategy — a model dropout degrades to safe phase play, never to a
+stale plan.
+
+## Computed tactics
+
+The gateway sample team exposes pass odds, shot quality, open space and marking targets as
+Lambda tools behind an AgentCore Gateway — two extra model turns plus a network hop per
+use. This team computes the same four results in `lib/tactical_tools.py` (same formulas)
+and prints the relevant ones into the state summary, gated by phase and role: the carrier
+sees pass odds and shot quality, off-ball attackers see the clearest open point, defenders
+in `DEFEND` see threat-ranked marks. The model reads the answers instead of asking for
+them, at zero added latency.
 
 ## The pusher rule
 

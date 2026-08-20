@@ -25,14 +25,15 @@ from test_helpers import mock_agentcore  # noqa: E402
 mock_agentcore()
 
 from harness_prompt import HARNESS_CAVEATS, build  # noqa: E402
+from models import PLAYER_MODEL_ID  # noqa: E402
 
 # (agent dir, harness name, model) — the model matches the runtime's.
 AGENTS = [
-    ("ai-gk", "ai_gk_harness", "us.amazon.nova-lite-v1:0"),
-    ("ai-def", "ai_def_harness", "us.amazon.nova-lite-v1:0"),
-    ("ai-ml", "ai_ml_harness", "us.amazon.nova-micro-v1:0"),
-    ("ai-mr", "ai_mr_harness", "us.amazon.nova-micro-v1:0"),
-    ("ai-fwd", "ai_fwd_harness", "us.amazon.nova-pro-v1:0"),
+    ("ai-gk", "ai_gk_harness", PLAYER_MODEL_ID),
+    ("ai-def", "ai_def_harness", PLAYER_MODEL_ID),
+    ("ai-ml", "ai_ml_harness", PLAYER_MODEL_ID),
+    ("ai-mr", "ai_mr_harness", PLAYER_MODEL_ID),
+    ("ai-fwd", "ai_fwd_harness", PLAYER_MODEL_ID),
 ]
 
 # One model call per tick. A football tick is a reflex, not a research task, so

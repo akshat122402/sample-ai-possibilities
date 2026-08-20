@@ -7,7 +7,9 @@ import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..",
 from _bootstrap import setup_lib_path; setup_lib_path(__file__)
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
-from prompt_common import FIELD, PHASES, command_reference, output_contract
+from captain import create_captain_agent
+from models import PLAYER_MODEL_ID
+from prompt_common import FIELD, HINTS, PHASES, command_reference, output_contract
 from tactical_agent_base import create_tactical_agent, create_tactical_invoke_handler
 
 app = BedrockAgentCoreApp()
@@ -36,13 +38,9 @@ risk of this formation and covering it is your most valuable job.
 ## Being captain
 Coordination is already solved: the PHASE on the first line of every game state is
 computed by one shared function that all five of you run, so you are reading the same
-plan without needing to talk. Your captaincy is one concrete power — you are the only
-player allowed to issue SET_STANCE. Spend it at a RESTART, where nobody is moving and the
-tick is cheap:
-- we are behind on the score → SET_STANCE 1 (Attack)
-- we are ahead on the score  → SET_STANCE 2 (Defend)
-- level                      → SET_STANCE 0 (Balanced)
-Never spend an open-play tick on SET_STANCE. Positioning is worth more.
+plan without needing to talk. Team stance is handled for you too — a dedicated captain
+reviewer periodically issues SET_STANCE through your runtime. Never issue SET_STANCE
+yourself; spend every tick on goalkeeping.
 
 ## What to do in each phase
 - DEFEND — sit 4-6 units in front of your own goal, tracking the ball's y at about a
@@ -67,12 +65,15 @@ Never spend an open-play tick on SET_STANCE. Positioning is worth more.
 
 {FIELD}
 
+{HINTS}
+
 {PHASES}
 
 {output_contract(MY_PLAYER_ID, EXAMPLES)}"""
 
-agent = create_tactical_agent(SYSTEM_PROMPT, model_id="us.amazon.nova-lite-v1:0")
-create_tactical_invoke_handler(app, agent, ROLE, MY_PLAYER_ID)
+agent = create_tactical_agent(SYSTEM_PROMPT, model_id=PLAYER_MODEL_ID)
+captain_agent = create_captain_agent()
+create_tactical_invoke_handler(app, agent, ROLE, MY_PLAYER_ID, captain_agent=captain_agent)
 
 if __name__ == "__main__":
     app.run()

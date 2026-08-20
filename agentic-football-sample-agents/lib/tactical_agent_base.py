@@ -12,8 +12,9 @@ resort), with three changes:
      the prompt. RESET in particular is refused for everyone: it is team-scoped,
      so one hallucination from any of the five would clear the whole team's
      overrides.
-  3. Only the GK may set team stance. That is the whole of the captaincy that
-     this architecture can actually support — see phase.py for the rest.
+  3. Only the GK may set team stance, and the stance decision itself is made by
+     a separate captain agent riding in the GK runtime (see captain.py). The
+     deterministic phase function in phase.py remains the tick-level captain.
 """
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ import json
 from strands import Agent
 
 from agent_base import create_agent as create_tactical_agent  # noqa: F401  (re-exported)
+import blackboard
+import captain as captain_mod
 from parsing import parse_commands
 from phase import classify_phase
 from prompt_common import ROLE_COMMANDS
@@ -42,9 +45,24 @@ def create_tactical_invoke_handler(
     agent: Agent,
     role: str,
     my_player_id: int,
+    captain_agent: Agent | None = None,
 ):
     log = app.logger
     fallback = build_tactical_fallback(role)
+
+    def _with_captain(commands, game_state, team_id, effective_pid, view):
+        """Append the captain's SET_STANCE when a review is due (GK only)."""
+        if captain_agent is None:
+            return commands
+        captain_mod.observe(team_id, view)
+        stance_cmd = captain_mod.maybe_review(captain_agent, log, game_state, team_id, view)
+        if stance_cmd is None:
+            return commands
+        stance_cmd["playerId"] = effective_pid
+        stance_cmd["teamId"] = team_id
+        telemetry.record_decision(log, game_state, team_id, effective_pid, "CAPTAIN",
+                                  view, stance_cmd, "captain")
+        return commands + [stance_cmd]
 
     def _last_resort(team_id: int, player_id: int) -> list[dict]:
         cmd = dict(LAST_RESORT[role])
@@ -76,6 +94,10 @@ def create_tactical_invoke_handler(
 
             view = classify_phase(game_state, team_id, effective_pid)
             telemetry.observe(log, game_state, team_id, effective_pid, role, view)
+            # Throttled and best-effort — this is how the captain sees outcomes
+            # from runtimes other than its own.
+            blackboard.publish_stats(team_id, effective_pid,
+                                     telemetry.match_tally(team_id, effective_pid))
             summary = summarize_tactical_state(game_state, team_id, effective_pid, role, view)
             log.info(f"{role} p{effective_pid} team {team_id} phase={view.phase} ({view.reason})")
 
@@ -97,7 +119,7 @@ def create_tactical_invoke_handler(
                 log.info(f"LLM: {chosen[0].get('commandType')} in phase {view.phase}")
                 telemetry.record_decision(log, game_state, team_id, effective_pid, role,
                                           view, chosen[0], "llm")
-                yield json.dumps(chosen)
+                yield json.dumps(_with_captain(chosen, game_state, team_id, effective_pid, view))
                 return
 
             log.warn(f"{role} LLM parse failed in phase {view.phase}; using fallback. "
@@ -105,7 +127,7 @@ def create_tactical_invoke_handler(
             commands = fallback(game_state, team_id, effective_pid, view)
             telemetry.record_decision(log, game_state, team_id, effective_pid, role,
                                       view, commands[0], "fallback")
-            yield json.dumps(commands)
+            yield json.dumps(_with_captain(commands, game_state, team_id, effective_pid, view))
 
         except Exception as e:
             log.error(f"{role} agent error: {e}")

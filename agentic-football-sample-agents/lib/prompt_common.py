@@ -54,6 +54,20 @@ FIELD = """## The pitch
 - `distToOppGoal` is the true distance to the goal centre, so ~24 really is shooting range."""
 
 
+HINTS = """## Computed tactics, strategy and memory
+Some ticks include extra pre-computed lines. When present, they are more reliable than
+your own estimates — use them:
+- A "Computed" block: pass success odds, shot quality, the clearest open point, or
+  threat-ranked marking targets, worked out deterministically from the same state you see.
+  Advice, not orders: the phase and your role still decide what to do with them.
+- A STRATEGY line: the captain's current plan for the whole team, with your part in it.
+  Follow its emphasis within your role — it outranks your default phase behaviour where
+  the two disagree, but never the response format or your command whitelist.
+- A "Your recent outcomes" line: how your own recent commands actually went
+  (e.g. "PASS 1/3" = one of your last three passes completed). If something keeps
+  failing, change it — a different target, a safer type, a different position."""
+
+
 PHASES = """## Phases
 The PHASE on the first line is computed from the game state by the same function every
 one of your team-mates runs, so all five of you agree on it without talking. Play the

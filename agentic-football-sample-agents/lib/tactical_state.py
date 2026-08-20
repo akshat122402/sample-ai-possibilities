@@ -87,8 +87,23 @@ def summarize_tactical_state(
     if mode_owner is not None:
         mode_note = " (ours)" if mode_owner == team_id else " (theirs)"
 
+    # telemetry imports this module's goal helpers, so it can only be imported
+    # here; blackboard and strategy ride along to keep the plan lookup together.
+    import blackboard
+    import strategy as strategy_mod
+    import telemetry
+
     lines = [
         f"PHASE: {view.phase} — {view.reason}",
+    ]
+
+    plan = blackboard.read_plan(team_id)
+    if plan and strategy_mod.valid(plan.get("strategy")) and plan["strategy"] != strategy_mod.DEFAULT:
+        lines.append(
+            f"STRATEGY: {plan['strategy']} (captain) — {strategy_mod.role_brief(plan['strategy'], role)}"
+        )
+
+    lines += [
         f"Time {float(game_state.get('gameTime', 0)):.0f}s | Score {score.get('home', 0)}-{score.get('away', 0)} "
         f"| You are {'HOME' if team_id == 0 else 'AWAY'} | PlayMode {game_state.get('playMode', 'OPEN_PLAY')}{mode_note}",
         f"You attack toward x={opp_goal_x:+.0f}, you defend x={my_goal_x:+.0f}.",
@@ -108,6 +123,9 @@ def summarize_tactical_state(
             f"distToOppGoal={dist_to_opp_goal(my_pos, team_id):.1f} "
             f"closestToBallOnMyTeam={'true' if view.i_am_nearest_to_ball else 'false'}"
         )
+        patterns = telemetry.recent_patterns(team_id, my_player_id)
+        if patterns:
+            lines.append(f"Your recent outcomes (worked/tried): {patterns}")
         lines.append("")
 
     lines.append("Teammates:")
@@ -134,5 +152,15 @@ def summarize_tactical_state(
             f"behindBall={'yes' if beaten else 'no'}"
             + (" <-- has the ball" if pid == view.opp_carrier_id else "")
         )
+
+    # Imported here, not at the top: tactical_tools imports goal_centre and
+    # ROLE_NAMES from this module.
+    from tactical_tools import tactical_hints
+
+    hints = tactical_hints(game_state, team_id, my_player_id, role, view)
+    if hints:
+        lines.append("")
+        lines.append("Computed (deterministic — trust these numbers):")
+        lines.extend(f"  {h}" for h in hints)
 
     return "\n".join(lines)

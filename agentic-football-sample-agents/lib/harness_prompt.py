@@ -25,6 +25,10 @@ HARNESS_CAVEATS = [
     "no rule-based fallback — a failed or malformed model response is simply lost",
     "no telemetry — the calibration records are produced by runtime code",
     "no clamping of MOVE_TO targets to the pitch",
+    "no Computed tactics block — pass odds, shot quality, open space and marking "
+    "targets are computed by runtime code; estimate them from the raw positions",
+    "no captain — the stance reviewer is runtime code in the GK's process, so "
+    "nothing here ever issues SET_STANCE",
 ]
 
 

@@ -49,6 +49,17 @@ DEF_PRESS_INTENSITY = 0.8
 # carrier's progress toward our goal, so a larger number means further from us.
 FWD_PRESS_MIN_PROGRESS = 18.0
 
+# ── computed tactics (tactical_tools.py) ────────────────────────────────────
+# PASS_LANE_RADIUS: how close to the passing lane an opponent must be to count
+# as interception risk. Fit from outcome records where cmd="PASS": bucket by
+# the lane distance of the nearest opponent and find where completion drops.
+PASS_LANE_RADIUS = 8.0
+
+# ── captain ─────────────────────────────────────────────────────────────────
+# How often the captain reviews the match. Each review costs the GK one slow
+# tick, so shorter periods trade goalkeeper responsiveness for adaptability.
+CAPTAIN_PERIOD_SECONDS = 20.0
+
 # ── goalkeeper ──────────────────────────────────────────────────────────────
 # GK_SWEEP_RADIUS: how far out the keeper will come once the carrier is past
 # the defender. This is the formation's biggest single risk, so it is the value
@@ -88,6 +99,8 @@ PROVENANCE = {
     "FWD_PRESS_MIN_PROGRESS": "unmeasured — initial guess",
     "GK_SWEEP_RADIUS": "unmeasured — initial guess",
     "GK_LOOSE_BALL_RADIUS": "unmeasured — initial guess",
+    "PASS_LANE_RADIUS": "unmeasured — inherited from the gateway tool's guess",
+    "CAPTAIN_PERIOD_SECONDS": "unmeasured — initial guess",
 }
 
 

@@ -53,8 +53,21 @@ TRACKED = {"SHOOT", "PASS", "GK_DISTRIBUTE", "INTERCEPT", "SLIDE_TACKLE", "PRESS
 
 MAX_PENDING = 8
 
+# Outcomes that count as the command working, for the in-match tallies below.
+OK_RESULTS = {"goal", "completed", "won_ball_self", "won_ball_team"}
+
+# How many recent outcomes per command feed a player's pattern line.
+RECENT_WINDOW = 5
+
 _state: dict[tuple[int, int], dict] = {}
 _seq = [0]
+
+# In-match memory, derived from the same resolved outcomes that go to
+# CloudWatch. _match_tally feeds the captain's review (via the blackboard);
+# _recent feeds each player's own "Recent" summary line. Both are per-runtime
+# and lost on a container recycle — that costs history, never a tick.
+_match_tally: dict[tuple[int, int], dict] = {}   # (team, player) -> {cmd: [n, ok]}
+_recent: dict[tuple[int, int], dict] = {}        # (team, player) -> {cmd: [bool...]}
 
 
 def enabled() -> bool:
@@ -64,6 +77,8 @@ def enabled() -> bool:
 def reset() -> None:
     """Clear tracker state — used by tests."""
     _state.clear()
+    _match_tally.clear()
+    _recent.clear()
     _seq[0] = 0
 
 
@@ -144,6 +159,39 @@ def _resolve(pending: dict, snap: dict, player_id: int) -> str | None:
     return "unresolved" if expired else None
 
 
+# ── in-match memory ─────────────────────────────────────────────────────────
+
+def _tally(team_id: int, player_id: int, cmd: str, ok: bool) -> None:
+    key = (team_id, player_id)
+    counts = _match_tally.setdefault(key, {}).setdefault(cmd, [0, 0])
+    counts[0] += 1
+    counts[1] += int(ok)
+    recent = _recent.setdefault(key, {}).setdefault(cmd, [])
+    recent.append(ok)
+    del recent[:-RECENT_WINDOW]
+
+
+def match_tally(team_id: int, player_id: int) -> dict:
+    """This player's cumulative {cmd: [attempts, ok]} for the match so far."""
+    return {cmd: list(v) for cmd, v in _match_tally.get((team_id, player_id), {}).items()}
+
+
+def recent_patterns(team_id: int, player_id: int) -> str:
+    """One compact line of this player's recent outcomes, or '' when no data.
+
+    e.g. "PASS 1/3, PRESS_BALL 0/2" — the numerator is how many of the last
+    few attempts worked. This is what stops an amnesiac agent repeating the
+    same intercepted pass all match.
+    """
+    recent = _recent.get((team_id, player_id), {})
+    parts = [
+        f"{cmd} {sum(results)}/{len(results)}"
+        for cmd, results in sorted(recent.items())
+        if results
+    ]
+    return ", ".join(parts)
+
+
 # ── public API ──────────────────────────────────────────────────────────────
 
 def observe(log, game_state: dict, team_id: int, player_id: int, role: str, view) -> None:
@@ -179,6 +227,8 @@ def observe(log, game_state: dict, team_id: int, player_id: int, role: str, view
             if label is None:
                 still_open.append(pending)
                 continue
+            if label != "unresolved":
+                _tally(team_id, player_id, pending["cmd"], label in OK_RESULTS)
             _emit(log, "outcome", {
                 "id": pending["id"], "role": role, "player": player_id, "team": team_id,
                 "cmd": pending["cmd"], "phase": pending["phase"],

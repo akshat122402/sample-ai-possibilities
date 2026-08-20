@@ -7,7 +7,8 @@ import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..",
 from _bootstrap import setup_lib_path; setup_lib_path(__file__)
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
-from prompt_common import FIELD, PHASES, command_reference, output_contract
+from models import PLAYER_MODEL_ID
+from prompt_common import FIELD, HINTS, PHASES, command_reference, output_contract
 from tactical_agent_base import create_tactical_agent, create_tactical_invoke_handler
 
 app = BedrockAgentCoreApp()
@@ -60,11 +61,13 @@ Aim away from the keeper: if you are on the left of the goal, aim TR; on the rig
 
 {FIELD}
 
+{HINTS}
+
 {PHASES}
 
 {output_contract(MY_PLAYER_ID, EXAMPLES)}"""
 
-agent = create_tactical_agent(SYSTEM_PROMPT, model_id="us.amazon.nova-pro-v1:0")
+agent = create_tactical_agent(SYSTEM_PROMPT, model_id=PLAYER_MODEL_ID)
 create_tactical_invoke_handler(app, agent, ROLE, MY_PLAYER_ID)
 
 if __name__ == "__main__":

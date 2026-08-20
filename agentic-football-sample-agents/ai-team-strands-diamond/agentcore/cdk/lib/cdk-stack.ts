@@ -8,7 +8,8 @@ import {
   type CustomJWTAuthorizerConfig,
   type HarnessDeploymentConfig,
 } from '@aws/agentcore-cdk';
-import { CfnOutput, Stack, type StackProps } from 'aws-cdk-lib';
+import { CfnOutput, RemovalPolicy, Stack, type StackProps } from 'aws-cdk-lib';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
@@ -112,6 +113,22 @@ export class AgentCoreStack extends Stack {
       appProps.credentials = credentials;
     }
     this.application = new AgentCoreApplication(this, 'Application', appProps as any);
+
+    // Team blackboard: the one cross-runtime channel (lib/blackboard.py). The
+    // captain (GK runtime) writes the plan and reads everyone's stats; every
+    // player reads the plan and writes its own stats. A handful of tiny items
+    // at a read every ~2s per agent — pay-per-request costs effectively nothing.
+    const blackboard = new dynamodb.Table(this, 'TeamBlackboard', {
+      partitionKey: { name: 'teamId', type: dynamodb.AttributeType.NUMBER },
+      sortKey: { name: 'entry', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY, // match-scoped scratch data only
+    });
+    for (const env of this.application.environments.values()) {
+      env.runtime.addEnvironmentVariable('TEAM_BLACKBOARD_TABLE', blackboard.tableName);
+      blackboard.grantReadWriteData(env.runtime.role);
+    }
+    new CfnOutput(this, 'TeamBlackboardTableName', { value: blackboard.tableName });
 
     // Create AgentCoreMcp if there are gateways configured
     if (mcpSpec?.agentCoreGateways && mcpSpec.agentCoreGateways.length > 0) {
