@@ -34,8 +34,8 @@ STRATEGIES = {
         "brief": {
             "GK": "hold a higher line (~25 out) to sweep the space behind the press",
             "DEF": "step up to the halfway line; press the carrier 5 units earlier than usual",
-            "ML": "press their build-up in THEIR half; the pusher presses at 0.9 intensity",
-            "MR": "press their build-up in THEIR half; the pusher presses at 0.9 intensity",
+            "ML": "press their build-up in THEIR half — in your lane press the carrier at 0.9",
+            "MR": "press their build-up in THEIR half — in your lane press the carrier at 0.9",
             "FWD": "press their GK and DEF on every distribution; force the long ball",
         },
     },

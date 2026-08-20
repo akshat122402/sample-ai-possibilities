@@ -119,20 +119,26 @@ def shot_quality(shooter: dict, gk_pos: dict, blockers: list, team_id: int) -> d
 
 # ── open space ───────────────────────────────────────────────────────────────
 
-def best_open_space(opponents: list, my_pos: dict, zone: str, team_id: int) -> dict:
-    """Grid-search the zone for the point clearest of opponents but reachable."""
+def best_open_space(opponents: list, my_pos: dict, zone: str, team_id: int,
+                    y_range: tuple = (-30, 30)) -> dict:
+    """Grid-search the zone for the point clearest of opponents but reachable.
+
+    y_range confines the search to the caller's lane or pocket, so the hint can
+    never contradict a role's positioning rules.
+    """
     if team_id == 0:
         zones = {"defense": (-55, -15), "midfield": (-15, 15), "attack": (15, 52)}
     else:
         zones = {"defense": (15, 55), "midfield": (-15, 15), "attack": (-52, -15)}
     x_min, x_max = zones.get(zone, zones["midfield"])
+    y_min, y_max = y_range
 
     opp_positions = [p.get("position", {}) for p in opponents]
     best, best_score = None, -1e9
     x = x_min
     while x <= x_max:
-        y = -30
-        while y <= 30:
+        y = y_min
+        while y <= y_max:
             point = {"x": x, "y": y}
             clearance = min((dist(point, o) for o in opp_positions), default=999.0)
             score = clearance - dist(point, my_pos) * 0.15
@@ -195,6 +201,17 @@ def gk_line_target(ball_pos: dict, team_id: int, def_pos, we_have_ball: bool) ->
 
 # ── the per-tick hint block ──────────────────────────────────────────────────
 
+def _space_y_range(role: str, my_pos: dict) -> tuple:
+    """Where a role may be sent for space, mirroring its prompt's rules:
+    mids stay in their lane (their current side of y=0), FWD holds the central
+    pocket, DEF stays out of the corners."""
+    if role in ("ML", "MR"):
+        return (2, 30) if my_pos.get("y", 0) >= 0 else (-30, -2)
+    if role == "FWD":
+        return (-14, 14)
+    return (-18, 18)  # DEF: the box's side walls
+
+
 # Which zone a role offers into when its team has the ball.
 _SPACE_ZONE = {
     "DEF": {POSSESS: "midfield", COUNTER: "midfield"},
@@ -239,7 +256,8 @@ def tactical_hints(game_state: dict, team_id: int, my_player_id: int,
     elif view.we_have_ball and role in _SPACE_ZONE:
         zone = _SPACE_ZONE[role].get(view.phase)
         if zone:
-            space = best_open_space(opponents, my_pos, zone, team_id)
+            space = best_open_space(opponents, my_pos, zone, team_id,
+                                    y_range=_space_y_range(role, my_pos))
             lines.append(
                 f"Space: ({space['x']},{space['y']}) is the clearest {zone} point, "
                 f"{space['clearance']} from the nearest opponent"
