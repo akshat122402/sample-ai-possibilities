@@ -55,6 +55,11 @@ FWD_PRESS_MIN_PROGRESS = 18.0
 # the lane distance of the nearest opponent and find where completion drops.
 PASS_LANE_RADIUS = 8.0
 
+# ── spacing ─────────────────────────────────────────────────────────────────
+# Minimum separation between team-mates (prompt-enforced). Fit from kinematics:
+# the pairwise distance below which two team-mates' pass options collapse.
+TEAMMATE_SPACING = 10.0
+
 # ── captain ─────────────────────────────────────────────────────────────────
 # How often the captain reviews the match. Each review costs the GK one slow
 # tick, so shorter periods trade goalkeeper responsiveness for adaptability.
@@ -113,6 +118,7 @@ PROVENANCE = {
     "GK_DEPTH_DEFEND": "unmeasured — initial guess",
     "GK_MAX_FROM_GOAL": "unmeasured — initial guess",
     "GK_BEHIND_DEF_MARGIN": "unmeasured — initial guess",
+    "TEAMMATE_SPACING": "unmeasured — initial guess",
 }
 
 

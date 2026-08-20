@@ -8,7 +8,7 @@ from _bootstrap import setup_lib_path; setup_lib_path(__file__)
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from models import PLAYER_MODEL_ID
-from prompt_common import FIELD, HINTS, PHASES, command_reference, output_contract
+from prompt_common import FIELD, HINTS, PHASES, SPACING, STAMINA, command_reference, output_contract
 from tactical_agent_base import create_tactical_agent, create_tactical_invoke_handler
 
 app = BedrockAgentCoreApp()
@@ -76,6 +76,10 @@ ball, the first pass is looking for you.
 {FIELD}
 
 {HINTS}
+
+{SPACING}
+
+{STAMINA}
 
 {PHASES}
 

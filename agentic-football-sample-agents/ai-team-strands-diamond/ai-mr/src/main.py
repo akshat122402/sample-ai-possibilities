@@ -1,6 +1,6 @@
 """
 Diamond (1-2-1) Right Midfielder — controls ONLY player 3.
-Pushes when the ball is on RIGHT, holds the centre as pivot when it is not.
+Owns the right lane; forms the triangle with ML and DEF.
 """
 
 import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib")); sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "lib"))
@@ -8,7 +8,7 @@ from _bootstrap import setup_lib_path; setup_lib_path(__file__)
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from models import PLAYER_MODEL_ID
-from prompt_common import FIELD, HINTS, PHASES, command_reference, output_contract
+from prompt_common import FIELD, HINTS, PHASES, SPACING, STAMINA, command_reference, output_contract
 from tactical_agent_base import create_tactical_agent, create_tactical_invoke_handler
 
 app = BedrockAgentCoreApp()
@@ -78,6 +78,10 @@ You, ML and DEF form a triangle at all times — DEF the back point, you two wid
 {FIELD}
 
 {HINTS}
+
+{SPACING}
+
+{STAMINA}
 
 {PHASES}
 

@@ -26,7 +26,7 @@ from json_tolerant import parse_json_tolerant
 from models import CAPTAIN_MODEL_ID
 from phase import RESTART
 
-STANCE_NAMES = {0: "BALANCED", 1: "ATTACK", 2: "DEFEND"}
+STANCE_NAMES = strategy_mod.STANCE_NAMES
 
 CAPTAIN_PROMPT = f"""You are the captain of a 5-a-side football team playing a 1-2-1 diamond.
 Every ~20 seconds you review the match and set the team's plan. Your five players already

@@ -98,10 +98,14 @@ def summarize_tactical_state(
     ]
 
     plan = blackboard.read_plan(team_id)
-    if plan and strategy_mod.valid(plan.get("strategy")) and plan["strategy"] != strategy_mod.DEFAULT:
-        lines.append(
-            f"STRATEGY: {plan['strategy']} (captain) — {strategy_mod.role_brief(plan['strategy'], role)}"
-        )
+    if plan:
+        if strategy_mod.valid(plan.get("strategy")) and plan["strategy"] != strategy_mod.DEFAULT:
+            lines.append(
+                f"STRATEGY: {plan['strategy']} (captain) — {strategy_mod.role_brief(plan['strategy'], role)}"
+            )
+        stance = plan.get("stance", 0)
+        if stance in (1, 2):
+            lines.append(f"STANCE: {strategy_mod.STANCE_NAMES[stance]} (captain)")
 
     lines += [
         f"Time {float(game_state.get('gameTime', 0)):.0f}s | Score {score.get('home', 0)}-{score.get('away', 0)} "

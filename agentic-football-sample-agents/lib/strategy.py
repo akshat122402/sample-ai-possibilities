@@ -17,6 +17,8 @@ from __future__ import annotations
 
 DEFAULT = "BALANCED_DEFAULT"
 
+STANCE_NAMES = {0: "BALANCED", 1: "ATTACK", 2: "DEFEND"}
+
 # name -> {"summary": for the captain's catalogue, "brief": {role: summary line}}
 STRATEGIES = {
     "BALANCED_DEFAULT": {

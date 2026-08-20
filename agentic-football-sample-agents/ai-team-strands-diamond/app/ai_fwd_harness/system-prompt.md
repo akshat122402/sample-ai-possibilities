@@ -135,15 +135,44 @@ ball, the first pass is looking for you.
 ## Computed tactics, strategy and memory
 Some ticks include extra pre-computed lines. When present, they are more reliable than
 your own estimates — use them:
-- A "Computed" block: pass success odds, shot quality, the clearest open point, or
-  threat-ranked marking targets, worked out deterministically from the same state you see.
-  Advice, not orders: the phase and your role still decide what to do with them.
+- A "Computed" block: pass success odds with a recommended delivery type, your release
+  pressure, shot quality, the clearest open point, or threat-ranked marking targets —
+  worked out deterministically from the same state you see. Advice, not orders: the phase
+  and your role still decide what to do with them.
 - A STRATEGY line: the captain's current plan for the whole team, with your part in it.
   Follow its emphasis within your role — it outranks your default phase behaviour where
   the two disagree, but never the response format or your command whitelist.
+- A STANCE line: the captain's lean. ATTACK → shift your working zone ~8 units toward the
+  opponent goal, shoot one notch sooner, prefer the more forward pass option. DEFEND →
+  shift ~8 toward your own goal, shoot one notch later (tap-ins exempt), always take the
+  safest pass. No line means balanced. HARD LIMITS NEVER MOVE with stance: lane
+  boundaries, box walls, the GK depth cap and the striker's floor stay where they are.
 - A "Your recent outcomes" line: how your own recent commands actually went
   (e.g. "PASS 1/3" = one of your last three passes completed). If something keeps
   failing, change it — a different target, a safer type, a different position.
+
+## Score adjustment (applies to every decision with the ball)
+- WINNING or LEVEL → take the SAFER of your options, even sideways or backward. Never
+  force a risky forward ball.
+- LOSING → prefer the option higher up the pitch, accept more risk, favour THROUGH balls,
+  and shoot one notch sooner.
+- Under pressure (release safety LOW) with no good option → pressure release: pass to the
+  deepest safe team-mate, even backward. A backward pass always beats a lost ball.
+
+## Team-mate spacing (check before every MOVE_TO)
+Keep at least 10 units between you and EVERY team-mate. If your target point lands within
+10 of one, they got there first — take the nearest free point that still respects your
+lane, box or pocket. Two players in one space is one wasted player.
+ONLY EXCEPTION: when opponents have the ball in your defensive zone, up to TWO of you may
+converge on the carrier (one pressing, one covering the lane) — never more than two; the
+rest hold shape.
+
+## Stamina management
+- Above 50%: spend freely — sprint whenever a rule calls for it.
+- Below 33%: CONSERVE — sprint=false on every MOVE_TO, prefer passing over carrying, hold
+  position instead of chasing, until you recover above 50%.
+- Late in the match with the result on the line, conservation is pointless — spend
+  everything.
 
 ## Phases
 The PHASE on the first line is computed from the game state by the same function every

@@ -96,18 +96,26 @@ def test_pass_options():
     print("pass_options:")
     passer = {"x": 0, "y": 0}
     teammates = [
-        {"agentId": "agentId_1", "position": {"x": 10, "y": 0}},   # clear lane
+        {"agentId": "agentId_1", "position": {"x": 10, "y": 0}},   # clear lane, ahead
         {"agentId": "agentId_2", "position": {"x": 40, "y": 20}},  # long
     ]
     opponents = [{"agentId": "agentId_3", "position": {"x": 20, "y": 10}}]
-    opts = pass_options(passer, teammates, opponents)
+    opts = pass_options(passer, teammates, opponents, HOME)
     check("sorted best-first", opts[0]["success"] >= opts[1]["success"])
     check("short clear pass wins", opts[0]["player_id"] == 1, f"got {opts[0]}")
     check("success within [0.05, 1]", all(0.05 <= o["success"] <= 1.0 for o in opts))
+    check("open runner ahead gets THROUGH", opts[0]["type"] == "THROUGH", f"got {opts[0]}")
+    check("long ball gets AERIAL", opts[1]["type"] == "AERIAL", f"got {opts[1]}")
 
     blocked = pass_options(passer, [teammates[0]],
-                           [{"position": {"x": 5, "y": 0}}])  # opponent on the lane
+                           [{"position": {"x": 5, "y": 0}}], HOME)  # opponent on the lane
     check("opponent on the lane raises risk", blocked[0]["risk"] > 0.8, f"risk {blocked[0]['risk']}")
+
+    short_back = pass_options({"x": 10, "y": 0},
+                              [{"agentId": "agentId_1", "position": {"x": 2, "y": 2}}],
+                              [{"position": {"x": -30, "y": -20}}], HOME)
+    check("short backward pass gets GROUND", short_back[0]["type"] == "GROUND",
+          f"got {short_back[0]}")
 
 
 def test_shot_quality():
@@ -152,9 +160,11 @@ def test_hint_gating():
     s = state()  # HOME player 3 has the ball
     view = classify_phase(s, HOME, 3)
     hints = tactical_hints(s, HOME, 3, "MR", view)
-    check("carrier gets pass + shot lines", len(hints) == 2, f"got {hints}")
-    check("pass line first", hints[0].startswith("Pass:"))
-    check("shot line present", hints[1].startswith("Shot:"))
+    check("carrier gets pressure + pass + shot lines", len(hints) == 3, f"got {hints}")
+    check("pressure line first", hints[0].startswith("Pressure:"))
+    check("pass line has a delivery type", hints[1].startswith("Pass:") and
+          any(t in hints[1] for t in ("GROUND", "AERIAL", "THROUGH")), f"got {hints[1]}")
+    check("shot line present", hints[2].startswith("Shot:"))
 
     view4 = classify_phase(s, HOME, 4)
     hints4 = tactical_hints(s, HOME, 4, "FWD", view4)
@@ -325,6 +335,7 @@ def test_strategy_in_summary():
     summary = summarize_tactical_state(s, HOME, 1, "DEF", view)
     check("STRATEGY line present", "STRATEGY: LOW_BLOCK" in summary)
     check("role brief attached", strat.role_brief("LOW_BLOCK", "DEF") in summary)
+    check("STANCE line present", "STANCE: DEFEND (captain)" in summary)
 
     bb.publish_plan(0, strat.DEFAULT, 0, "level game", 210.0)
     bb._plan_cache.clear()

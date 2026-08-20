@@ -9,7 +9,7 @@ from _bootstrap import setup_lib_path; setup_lib_path(__file__)
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from captain import create_captain_agent
 from models import PLAYER_MODEL_ID
-from prompt_common import FIELD, HINTS, PHASES, command_reference, output_contract
+from prompt_common import FIELD, HINTS, PHASES, STAMINA, command_reference, output_contract
 from tactical_agent_base import create_tactical_agent, create_tactical_invoke_handler
 
 app = BedrockAgentCoreApp()
@@ -80,6 +80,8 @@ through ball; you are the only cover.
 {FIELD}
 
 {HINTS}
+
+{STAMINA}
 
 {PHASES}
 

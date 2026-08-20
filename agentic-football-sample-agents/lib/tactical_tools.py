@@ -28,7 +28,7 @@ from calibration import (
 )
 from phase import COUNTER, DEFEND, POSSESS, PhaseView, attack_dir, progress
 from state import _is_my_team, _player_idx, dist, get_goal_positions
-from tactical_state import ROLE_NAMES, goal_centre
+from tactical_state import ROLE_NAMES, dist_to_opp_goal, goal_centre
 
 GOAL_HALF_WIDTH = 5.0
 
@@ -54,22 +54,36 @@ def _interception_risk(passer: dict, receiver: dict, opponents: list) -> float:
     return min(risk, 0.95)
 
 
-def pass_options(my_pos: dict, teammates: list, opponents: list) -> list:
-    """Success odds for a pass to each teammate, best first.
+def _delivery_type(d: float, risk: float, ahead: bool, receiver_space: float) -> str:
+    """GROUND to feet when short and clear, THROUGH to lead a runner into
+    space, AERIAL to clear a contested lane or cover distance."""
+    if ahead and receiver_space > 8 and risk < 0.4:
+        return "THROUGH"
+    if d > 15 or risk >= 0.25:
+        return "AERIAL"
+    return "GROUND"
+
+
+def pass_options(my_pos: dict, teammates: list, opponents: list, team_id: int) -> list:
+    """Success odds and recommended delivery for each teammate, best first.
 
     teammates/opponents are player dicts; the caller excludes the passer.
     """
     opp_positions = [p.get("position", {}) for p in opponents]
+    my_goal_dist = dist_to_opp_goal(my_pos, team_id)
     options = []
     for tm in teammates:
         pos = tm.get("position", {})
         d = dist(my_pos, pos)
         risk = _interception_risk(my_pos, pos, opp_positions)
+        ahead = dist_to_opp_goal(pos, team_id) < my_goal_dist - 3
+        space = min((dist(pos, o) for o in opp_positions), default=999.0)
         options.append({
             "player_id": _player_idx(tm),
             "dist": round(d, 1),
             "risk": round(risk, 2),
             "success": round(max(0.05, 1.0 - risk - (d / 120.0)), 2),
+            "type": _delivery_type(d, risk, ahead, space),
         })
     options.sort(key=lambda o: o["success"], reverse=True)
     return options
@@ -236,12 +250,15 @@ def tactical_hints(game_state: dict, team_id: int, my_player_id: int,
     lines = []
 
     if view.i_have_ball:
+        near_opp = min((dist(my_pos, p.get("position", {})) for p in opponents), default=999.0)
+        release = "HIGH" if near_opp > 10 else ("MEDIUM" if near_opp >= 5 else "LOW — release NOW")
+        lines.append(f"Pressure: nearest opponent {near_opp:.1f} away — release safety {release}")
         teammates = [p for p in mine if _player_idx(p) != my_player_id]
-        opts = pass_options(my_pos, teammates, opponents)[:3]
+        opts = pass_options(my_pos, teammates, opponents, team_id)[:3]
         if opts:
             lines.append("Pass: " + " | ".join(
                 f"{ROLE_NAMES.get(o['player_id'], 'P%d' % o['player_id'])}(id{o['player_id']}) "
-                f"{o['success']:.0%} dist {o['dist']}" for o in opts
+                f"{o['success']:.0%} {o['type']} dist {o['dist']}" for o in opts
             ))
         if role != "GK":
             opp_gk = next((p for p in opponents if _player_idx(p) == 0), None)
